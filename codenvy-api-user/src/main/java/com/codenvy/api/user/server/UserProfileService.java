@@ -19,12 +19,12 @@ import com.codenvy.api.core.rest.annotations.Description;
 import com.codenvy.api.core.rest.annotations.GenerateLink;
 import com.codenvy.api.core.rest.annotations.Required;
 import com.codenvy.api.core.rest.shared.dto.Link;
+import com.codenvy.api.user.server.dao.PreferenceDao;
 import com.codenvy.api.user.server.dao.Profile;
 import com.codenvy.api.user.server.dao.User;
 import com.codenvy.api.user.server.dao.UserDao;
 import com.codenvy.api.user.server.dao.UserProfileDao;
 import com.codenvy.api.user.shared.dto.ProfileDescriptor;
-import com.codenvy.api.user.shared.dto.UserDescriptor;
 import com.codenvy.commons.env.EnvironmentContext;
 import com.codenvy.dto.server.DtoFactory;
 
@@ -83,26 +83,24 @@ public class UserProfileService extends Service {
 
     private final UserProfileDao profileDao;
     private final UserDao        userDao;
+    private final PreferenceDao  preferenceDao;
 
     @Inject
-    public UserProfileService(UserProfileDao profileDao, UserDao userDao) {
+    public UserProfileService(UserProfileDao profileDao, PreferenceDao preferenceDao, UserDao userDao) {
         this.profileDao = profileDao;
         this.userDao = userDao;
+        this.preferenceDao = preferenceDao;
     }
 
     /**
      * <p>Returns {@link ProfileDescriptor} for current user profile.</p>
      * <p>By default user email will be added to attributes with key <i>'email'</i>.</p>
      *
-     * @param filter
-     *         preferences filter regex, if it is not {@code null}
-     *         only preferences matched to filter will be fetched
      * @return descriptor of profile
      * @throws ServerException
      *         when some error occurred while retrieving/updating profile
      * @see ProfileDescriptor
      * @see #updateCurrent(Map, SecurityContext)
-     * @see #updatePreferences(Map, SecurityContext)
      */
     @ApiOperation(value = "Get user profile",
                   notes = "Get user profile details",
@@ -116,18 +114,9 @@ public class UserProfileService extends Service {
     @RolesAllowed({"user", "temp_user"})
     @GenerateLink(rel = LINK_REL_GET_CURRENT_USER_PROFILE)
     @Produces(APPLICATION_JSON)
-    public ProfileDescriptor getCurrent(@ApiParam(value = "Search filter. Regex can be used")
-                                        @Description("Preferences path filter")
-                                        @QueryParam("filter")
-                                        String filter,
-                                        @Context SecurityContext context) throws NotFoundException, ServerException {
+    public ProfileDescriptor getCurrent(@Context SecurityContext context) throws NotFoundException, ServerException {
         final User user = userDao.getById(currentUser().getId());
-        final Profile profile;
-        if (filter == null) {
-            profile = profileDao.getById(user.getId());
-        } else {
-            profile = profileDao.getById(user.getId(), filter);
-        }
+        final Profile profile = profileDao.getById(user.getId());
         profile.getAttributes().put("email", user.getEmail());
         return toDescriptor(profile, context);
     }
@@ -145,7 +134,6 @@ public class UserProfileService extends Service {
      * @throws ServerException
      *         when some error occurred while retrieving/persisting profile
      * @see ProfileDescriptor
-     * @see #updatePreferences(Map, SecurityContext)
      */
     @POST
     @RolesAllowed("user")
@@ -240,7 +228,6 @@ public class UserProfileService extends Service {
                                      @Context SecurityContext context) throws NotFoundException, ServerException {
         final Profile profile = profileDao.getById(profileId);
         final User user = userDao.getById(profile.getUserId());
-        profile.getPreferences().clear();
         profile.getAttributes().put("email", user.getEmail());
         return toDescriptor(profile, context);
     }
@@ -252,7 +239,7 @@ public class UserProfileService extends Service {
      * existed profile preferences with same names as update preferences
      * will be replaced with update preferences.</p>
      *
-     * @param preferencesToUpdate
+     * @param update
      *         update preferences
      * @return descriptor of updated profile
      * @throws ServerException
@@ -266,17 +253,10 @@ public class UserProfileService extends Service {
     @GenerateLink(rel = LINK_REL_UPDATE_PREFERENCES)
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-    public ProfileDescriptor updatePreferences(@Description("preferences to update") Map<String, String> preferencesToUpdate,
-                                               @Context SecurityContext context) throws NotFoundException, ServerException {
-        final Profile currentProfile = profileDao.getById(currentUser().getId());
-        //if given preferences are null or empty - clear profile preferences
-        if (preferencesToUpdate == null || preferencesToUpdate.isEmpty()) {
-            currentProfile.getPreferences().clear();
-        } else {
-            currentProfile.getPreferences().putAll(preferencesToUpdate);
-        }
-        profileDao.update(currentProfile);
-        return toDescriptor(currentProfile, context);
+    public ProfileDescriptor updatePreferences(@Description("preferences to update") Map<String, String> update) throws NotFoundException,
+                                                                                                                        ServerException {
+        //TODO:
+        throw new RuntimeException("Not implemented");
     }
 
     /**
@@ -323,7 +303,7 @@ public class UserProfileService extends Service {
     /**
      * Removes preferences with given name from current user profile.
      *
-     * @param prefNames
+     * @param names
      *         preferences names to remove
      * @throws ConflictException
      *         when given list of preferences names is {@code null}
@@ -345,17 +325,11 @@ public class UserProfileService extends Service {
     @RolesAllowed({"user", "temp_user"})
     @Consumes(APPLICATION_JSON)
     public void removePreferences(@ApiParam(value = "Preferences to remove", required = true)
-                                  @Required List<String> prefNames,
+                                  @Required
+                                  List<String> names,
                                   @Context SecurityContext context) throws NotFoundException, ConflictException, ServerException {
-        if (prefNames == null) {
-            throw new ConflictException("Preferences names required");
-        }
-        final Profile currentProfile = profileDao.getById(currentUser().getId());
-        final Map<String, String> preferences = currentProfile.getPreferences();
-        for (String prefName : prefNames) {
-            preferences.remove(prefName);
-        }
-        profileDao.update(currentProfile);
+        //TODO:
+        throw new RuntimeException("Not implemented");
     }
 
     /**
@@ -422,7 +396,6 @@ public class UserProfileService extends Service {
                          .withId(profile.getId())
                          .withUserId(profile.getUserId())
                          .withAttributes(profile.getAttributes())
-                         .withPreferences(profile.getPreferences())
                          .withLinks(links);
     }
 

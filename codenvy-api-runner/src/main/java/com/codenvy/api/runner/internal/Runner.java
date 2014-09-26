@@ -449,7 +449,7 @@ public abstract class Runner {
         synchronized void stopped() {
             stopTime = System.currentTimeMillis();
             if (status != ApplicationStatus.CANCELLED) {
-                // save 'cancelled' status
+                // setPreferences 'cancelled' status
                 status = ApplicationStatus.STOPPED;
             }
             if (callback != null) {

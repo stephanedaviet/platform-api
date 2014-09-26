@@ -32,12 +32,10 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.regex.Pattern;
 
 @Singleton
 public class LocalProfileDaoImpl implements UserProfileDao {
@@ -110,13 +108,13 @@ public class LocalProfileDaoImpl implements UserProfileDao {
                 gson.toJson(profiles, new TypeToken<Map<String, Profile>>() {
                 }.getType(), writer);
             } catch (Exception e) {
-                LOG.error(String.format("Failed save user profiles form %s", storageFile), e);
+                LOG.error(String.format("Failed setPreferences user profiles form %s", storageFile), e);
             } finally {
                 if (writer != null) {
                     try {
                         writer.close();
                     } catch (IOException e) {
-                        LOG.error(String.format("Failed save user profiles form %s", storageFile), e);
+                        LOG.error(String.format("Failed setPreferences user profiles form %s", storageFile), e);
                     }
                 }
             }
@@ -131,8 +129,7 @@ public class LocalProfileDaoImpl implements UserProfileDao {
         try {
             // just replace existed profile
             final Profile copy = new Profile().withId(profile.getId()).withUserId(profile.getUserId())
-                                              .withAttributes(new LinkedHashMap<>(profile.getAttributes()))
-                                              .withPreferences(new LinkedHashMap<>(profile.getPreferences()));
+                                              .withAttributes(new LinkedHashMap<>(profile.getAttributes()));
             profiles.put(copy.getId(), copy);
         } finally {
             lock.writeLock().unlock();
@@ -149,8 +146,6 @@ public class LocalProfileDaoImpl implements UserProfileDao {
             }
             myProfile.getAttributes().clear();
             myProfile.getAttributes().putAll(profile.getAttributes());
-            myProfile.getPreferences().clear();
-            myProfile.getPreferences().putAll(profile.getPreferences());
         } finally {
             lock.writeLock().unlock();
         }
@@ -178,26 +173,9 @@ public class LocalProfileDaoImpl implements UserProfileDao {
                 throw new NotFoundException(String.format("Profile not found %s", id));
             }
             return new Profile().withId(profile.getId()).withUserId(profile.getUserId())
-                                .withAttributes(new LinkedHashMap<>(profile.getAttributes()))
-                                .withPreferences(new LinkedHashMap<>(profile.getPreferences()));
+                                .withAttributes(new LinkedHashMap<>(profile.getAttributes()));
         } finally {
             lock.readLock().unlock();
         }
-    }
-
-    @Override
-    public Profile getById(String id, String filter) throws NotFoundException {
-        final Profile profile = getById(id);
-        if (filter != null && !filter.isEmpty()) {
-            final Pattern pattern = Pattern.compile(filter);
-            final Iterator<String> itr = profile.getPreferences().keySet().iterator();
-            while (itr.hasNext()) {
-                final String name = itr.next();
-                if (!pattern.matcher(name).matches()) {
-                    itr.remove();
-                }
-            }
-        }
-        return profile;
     }
 }
