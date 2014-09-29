@@ -66,6 +66,7 @@ import static com.codenvy.api.user.server.Constants.LINK_REL_UPDATE_PREFERENCES;
 import static com.codenvy.api.user.server.Constants.LINK_REL_UPDATE_USER_PROFILE_BY_ID;
 import static com.codenvy.commons.lang.Strings.nullToEmpty;
 
+import static java.util.Collections.emptyMap;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 /**
@@ -121,6 +122,15 @@ public class UserProfileService extends Service {
         return toDescriptor(profile, context);
     }
 
+    //TODO add javadoc
+    @GET
+    @Path("/prefs")
+    @Produces(APPLICATION_JSON)
+    @RolesAllowed({"user", "temp_user"})
+    public Map<String, String> getPreferences() throws ServerException {
+        return preferenceDao.getPreferences(currentUser().getId());
+    }
+
     /**
      * <p>Updates attributes of current user profile.</p>
      * <p><strong>Note:</strong>if updates are {@code null} or <i>empty</i>
@@ -141,15 +151,13 @@ public class UserProfileService extends Service {
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
     public ProfileDescriptor updateCurrent(@Description("attributes to update") Map<String, String> updates,
-                                           @Context SecurityContext context) throws NotFoundException, ServerException {
+                                           @Context SecurityContext context) throws NotFoundException, ServerException, ConflictException {
+        if (updates == null || updates.isEmpty()) {
+            throw new ConflictException("Attributes to update required");
+        }
         final User user = userDao.getById(currentUser().getId());
         final Profile profile = profileDao.getById(user.getId());
-        //if updates are null or empty - clear profile attributes
-        if (updates == null || updates.isEmpty()) {
-            profile.getAttributes().clear();
-        } else {
-            profile.getAttributes().putAll(updates);
-        }
+        profile.getAttributes().putAll(updates);
         profileDao.update(profile);
         logEventUserUpdateProfile(user, profile.getAttributes());
         return toDescriptor(profile, context);
@@ -183,14 +191,12 @@ public class UserProfileService extends Service {
     @Produces(APPLICATION_JSON)
     public ProfileDescriptor update(@PathParam("id") String profileId,
                                     Map<String, String> updates,
-                                    @Context SecurityContext context) throws NotFoundException, ServerException {
-        final Profile profile = profileDao.getById(profileId);
-        //if updates are null or empty - clear profile attributes
+                                    @Context SecurityContext context) throws NotFoundException, ServerException, ConflictException {
         if (updates == null || updates.isEmpty()) {
-            profile.getAttributes().clear();
-        } else {
-            profile.getAttributes().putAll(updates);
+            throw new ConflictException("Attributes to update required");
         }
+        final Profile profile = profileDao.getById(profileId);
+        profile.getAttributes().putAll(updates);
         profileDao.update(profile);
         final User user = userDao.getById(profile.getUserId());
         logEventUserUpdateProfile(user, profile.getAttributes());
@@ -222,7 +228,7 @@ public class UserProfileService extends Service {
     @Path("/{id}")
     @RolesAllowed({"user", "system/admin", "system/manager"})
     @Produces(APPLICATION_JSON)
-    public ProfileDescriptor getById(@ApiParam(value = "User ID")
+    public ProfileDescriptor getById(@ApiParam(value = "  ID")
                                      @PathParam("id")
                                      String profileId,
                                      @Context SecurityContext context) throws NotFoundException, ServerException {
@@ -253,10 +259,16 @@ public class UserProfileService extends Service {
     @GenerateLink(rel = LINK_REL_UPDATE_PREFERENCES)
     @Consumes(APPLICATION_JSON)
     @Produces(APPLICATION_JSON)
-    public ProfileDescriptor updatePreferences(@Description("preferences to update") Map<String, String> update) throws NotFoundException,
-                                                                                                                        ServerException {
-        //TODO:
-        throw new RuntimeException("Not implemented");
+    public Map<String, String> updatePreferences(@Required Map<String, String> update) throws NotFoundException,
+                                                                                              ServerException,
+                                                                                              ConflictException {
+        if (update == null || update.isEmpty()) {
+            throw new ConflictException("Preferences to update required");
+        }
+        final Map<String, String> preferences = preferenceDao.getPreferences(currentUser().getId());
+        preferences.putAll(update);
+        preferenceDao.setPreferences(currentUser().getId(), preferences);
+        return preferences;
     }
 
     /**
@@ -268,9 +280,7 @@ public class UserProfileService extends Service {
      *         when given list of attributes names is {@code null}
      * @throws ServerException
      *         when some error occurred while retrieving/updating profile
-     * @see #removePreferences(List, SecurityContext)
      */
-
     @ApiOperation(value = "Remove attributes of a current user",
                   notes = "Remove attributes of a current user",
                   position = 6)
@@ -289,24 +299,23 @@ public class UserProfileService extends Service {
                                  @Description("Attributes names to remove")
                                  List<String> attrNames,
                                  @Context SecurityContext context) throws NotFoundException, ServerException, ConflictException {
-        if (attrNames == null) {
-            throw new ConflictException("Attributes names required");
-        }
         final Profile currentProfile = profileDao.getById(currentUser().getId());
-        final Map<String, String> attributes = currentProfile.getAttributes();
-        for (String attributeName : attrNames) {
-            attributes.remove(attributeName);
+        if (attrNames == null) {
+            currentProfile.getAttributes().clear();
+        } else {
+            for (String attributeName : attrNames) {
+                currentProfile.getAttributes().remove(attributeName);
+            }
         }
         profileDao.update(currentProfile);
     }
 
     /**
+     * TODO
      * Removes preferences with given name from current user profile.
      *
      * @param names
      *         preferences names to remove
-     * @throws ConflictException
-     *         when given list of preferences names is {@code null}
      * @throws ServerException
      *         when some error occurred while retrieving/updating profile
      * @see #removeAttributes(List, SecurityContext)
@@ -326,10 +335,16 @@ public class UserProfileService extends Service {
     @Consumes(APPLICATION_JSON)
     public void removePreferences(@ApiParam(value = "Preferences to remove", required = true)
                                   @Required
-                                  List<String> names,
-                                  @Context SecurityContext context) throws NotFoundException, ConflictException, ServerException {
-        //TODO:
-        throw new RuntimeException("Not implemented");
+                                  List<String> names) throws ServerException, NotFoundException {
+        if (names == null) {
+            preferenceDao.remove(currentUser().getId());
+        } else {
+            final Map<String, String> preferences = preferenceDao.getPreferences(currentUser().getId());
+            for (String name : names) {
+                preferences.remove(name);
+            }
+            preferenceDao.setPreferences(currentUser().getId(), preferences);
+        }
     }
 
     /**
