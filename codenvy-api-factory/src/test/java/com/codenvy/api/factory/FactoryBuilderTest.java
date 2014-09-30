@@ -12,21 +12,37 @@ package com.codenvy.api.factory;
 
 import com.codenvy.api.core.ApiException;
 import com.codenvy.api.factory.dto.Factory;
-import com.codenvy.api.factory.dto.*;
+import com.codenvy.api.factory.dto.FactoryV1_1;
+import com.codenvy.api.factory.dto.Git;
+import com.codenvy.api.factory.dto.ProjectAttributes;
+import com.codenvy.api.factory.dto.Replacement;
+import com.codenvy.api.factory.dto.Restriction;
+import com.codenvy.api.factory.dto.Variable;
+import com.codenvy.api.factory.dto.WelcomeConfiguration;
+import com.codenvy.api.factory.dto.WelcomePage;
 import com.codenvy.dto.server.DtoFactory;
 
 import org.mockito.testng.MockitoTestNGListener;
-import org.testng.annotations.*;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Listeners;
+import org.testng.annotations.Test;
 
-import java.io.*;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
-import java.net.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.codenvy.api.factory.FactoryFormat.ENCODED;
-import static com.codenvy.api.factory.FactoryFormat.NONENCODED;
+import static com.codenvy.api.core.factory.FactoryParameter.FactoryFormat;
+import static com.codenvy.api.core.factory.FactoryParameter.FactoryFormat.ENCODED;
+import static com.codenvy.api.core.factory.FactoryParameter.FactoryFormat.NONENCODED;
 import static org.testng.Assert.assertEquals;
 
 /** @author Sergii Kabashniuk */
@@ -41,7 +57,7 @@ public class FactoryBuilderTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        factoryBuilder = new FactoryBuilder();
+        factoryBuilder = new FactoryBuilder(new SourceParametersValidator());
         actual = DtoFactory.getInstance().createDto(Factory.class);
 
         expected = DtoFactory.getInstance().createDto(Factory.class);
@@ -78,7 +94,7 @@ public class FactoryBuilderTest {
         actual.withV("1.0").withVcs("vcs").withVcsurl("vcsurl").withIdcommit("idcommit").withPtype("ptype").withPname("pname")
               .withAction("action").withWname("wname").withVcsinfo(true).withOpenfile("openfile");
 
-        factoryBuilder.checkValid(actual, FactoryFormat.NONENCODED);
+        factoryBuilder.checkValid(actual, NONENCODED);
     }
 
     @Test
@@ -144,7 +160,8 @@ public class FactoryBuilderTest {
 
         actual.withRestriction(
                 DtoFactory.getInstance().createDto(Restriction.class).withPassword("password").withRefererhostname("codenvy-dev.com")
-                          .withValiduntil(123456789).withValidsince(12345678).withMaxsessioncount(123).withRestrictbypassword(true));
+                          .withValiduntil(123456789).withValidsince(12345678).withMaxsessioncount(123).withRestrictbypassword(true)
+                              );
 
         factoryBuilder.checkValid(actual, ENCODED);
     }
@@ -169,7 +186,8 @@ public class FactoryBuilderTest {
 
         actual.withRestriction(
                 DtoFactory.getInstance().createDto(Restriction.class).withPassword("password").withRefererhostname("codenvy-dev.com")
-                          .withValiduntil(123456789).withValidsince(12345678).withMaxsessioncount(123).withRestrictbypassword(true));
+                          .withValiduntil(123456789).withValidsince(12345678).withMaxsessioncount(123).withRestrictbypassword(true)
+                              );
 
 
         factoryBuilder.checkValid(actual, NONENCODED);
