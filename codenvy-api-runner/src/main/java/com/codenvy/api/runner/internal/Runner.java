@@ -301,6 +301,9 @@ public abstract class Runner {
                     final long endTime = System.currentTimeMillis();
                     LOG.debug("Application {}/{} startup in {} ms", request.getWorkspace(), request.getProject(), (endTime - startTime));
                     realProcess.waitFor();
+                    if (realProcess.exitCode() != 0) {
+                        process.setError(new Exception("Process terminated with a non-zero return code, generally indicating an error. Refer to application logs to possibly get more details."));
+                    }
                     process.stopped();
                     LOG.debug("Stopped {}", process);
                 } catch (Throwable e) {
